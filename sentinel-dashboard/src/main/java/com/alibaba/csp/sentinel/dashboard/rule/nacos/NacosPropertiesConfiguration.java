@@ -16,6 +16,10 @@ public class NacosPropertiesConfiguration {
     private String groupId = "SENTINEL_GROUP";
     private String namespace;
 
+    private String username;
+
+    private String password;
+
     public String getServerAddr() {
         return serverAddr;
     }
@@ -46,5 +50,21 @@ public class NacosPropertiesConfiguration {
 
     public void setNamespace(String namespace) {
         this.namespace = namespace;
+    }
+
+    public String getUsername() {
+        return username;
+    }
+
+    public void setUsername(String username) {
+        this.username = username;
+    }
+
+    public String getPassword() {
+        return password;
+    }
+
+    public void setPassword(String password) {
+        this.password = password;
     }
 }
