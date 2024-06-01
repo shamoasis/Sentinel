@@ -6,7 +6,7 @@
     <parent>
         <groupId>com.alibaba.csp</groupId>
         <artifactId>sentinel-adapter</artifactId>
-        <version>1.8.6-SNAPSHOT</version>
+        <version>1.8.7</version>
     </parent>
 
     <artifactId>sentinel-jax-rs-adapter</artifactId>
@@ -43,7 +43,7 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
-            <version>2.2.6.RELEASE</version>
+            <version>2.4.13</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -66,7 +66,7 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
-                    <forkMode>always</forkMode>
+                    <reuseForks>false</reuseForks>
                 </configuration>
             </plugin>
         </plugins>
