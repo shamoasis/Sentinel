@@ -35,6 +35,7 @@ java -Dserver.port=8080 \
 |--------|--------|
 |`-Dcsp.sentinel.dashboard.server=localhost:8080`|向 Sentinel 接入端指定控制台的地址|
 |`-Dproject.name=sentinel-dashboard`|向 Sentinel 指定应用名称，比如上面对应的应用名称就为 `sentinel-dashboard`|
+|`-Dcsp.sentinel.api.port=8719`|可选项，客户端提供给Dashboard访问或者查看Sentinel的运行访问的参数，默认8719|
 
 全部的配置项可以参考 [启动配置项文档](https://github.com/alibaba/Sentinel/wiki/%E5%90%AF%E5%8A%A8%E9%85%8D%E7%BD%AE%E9%A1%B9)。
 

@@ -64,6 +64,28 @@ public class DashboardConfig {
      */
     public static final String CONFIG_AUTO_REMOVE_MACHINE_MILLIS = "sentinel.dashboard.autoRemoveMachineMillis";
 
+    /**
+     * nacos server
+     */
+    public static final String CONFIG_NACOS_SERVER_URL = "sentinel.dashboard.nacos.server";
+
+    /**
+     * nacos namespace
+     */
+    public static final String CONFIG_NACOS_SERVER_NAMESPACE = "sentinel.dashboard.nacos.namespace";
+
+    /**
+     * nacos username
+     */
+    public static final String CONFIG_NACOS_SERVER_USERNAME = "sentinel.dashboard.nacos.username";
+
+    /**
+     * nacos password
+     */
+    public static final String CONFIG_NACOS_SERVER_PASSWORD = "sentinel.dashboard.nacos.password";
+
+
+
     private static final ConcurrentMap<String, Object> cacheMap = new ConcurrentHashMap<>();
     
     @NonNull
@@ -137,4 +159,21 @@ public class DashboardConfig {
     public static void clearCache() {
         cacheMap.clear();
     }
+
+    public static String getNacosServer() {
+        return getConfigStr(CONFIG_NACOS_SERVER_URL);
+    }
+
+    public static String getNacosNamespace() {
+        return getConfigStr(CONFIG_NACOS_SERVER_NAMESPACE);
+    }
+
+    public static String getNacosUsername() {
+        return getConfigStr(CONFIG_NACOS_SERVER_USERNAME);
+    }
+
+    public static String getNacosPassword() {
+        return getConfigStr(CONFIG_NACOS_SERVER_PASSWORD);
+    }
+
 }
