@@ -16,6 +16,7 @@
         <resource.delimiter>@</resource.delimiter>
         <spring.boot.version>2.5.12</spring.boot.version>
         <curator.version>4.0.1</curator.version>
+        <influxdb-java.version>2.24</influxdb-java.version>
     </properties>
 
     <dependencies>
@@ -95,6 +96,11 @@
         <dependency>
             <groupId>com.alibaba</groupId>
             <artifactId>fastjson</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.influxdb</groupId>
+            <artifactId>influxdb-java</artifactId>
+            <version>${influxdb-java.version}</version>
         </dependency>
 
         <!-- for Nacos rule publisher sample -->

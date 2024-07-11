@@ -1,35 +1,126 @@
 var app = angular.module('sentinelDashboardApp');
-
 app.controller('MetricCtl', ['$scope', '$stateParams', 'MetricService', '$interval', '$timeout',
   function ($scope, $stateParams, MetricService, $interval, $timeout) {
-	$scope.charts = [];
-    $scope.endTime = new Date();
+    moment.locale('zh-cn');
+
+    const timeInterval = 5;
+
+    $scope.serviceQuery = '';
+    $scope.loading = false;
+    $scope.custom = false;
+    $scope.quick = false;
+    $scope.charts = [];
     $scope.startTime = new Date();
-    $scope.startTime.setMinutes($scope.endTime.getMinutes() - 30);
-    $scope.startTimeFmt = formatDate($scope.startTime);
-    $scope.endTimeFmt = formatDate($scope.endTime);
+    $scope.endTime = new Date();
+    $scope.startTime.setMinutes($scope.endTime.getMinutes() - timeInterval);
+    $scope.endDateBeforeRender = endDateBeforeRender;
+    $scope.endDateOnSetTime = endDateOnSetTime;
+    $scope.startDateBeforeRender = startDateBeforeRender;
+    $scope.startDateOnSetTime = startDateOnSetTime;
+
     function formatDate(date) {
       return moment(date).format('YYYY/MM/DD HH:mm:ss');
     }
-    $scope.changeStartTime = function (startTime) {
-      $scope.startTime = new Date(startTime);
-      $scope.startTimeFmt = formatDate(startTime);
-    };
-    $scope.changeEndTime = function (endTime) {
-      $scope.endTime = new Date(endTime);
-      $scope.endTimeFmt = formatDate(endTime);
-    };
+
+    function formatShowDate(date) {
+      return moment(date).format('YYYY-MM-DD HH:mm:ss');
+    }
+
+    function startDateOnSetTime (newDate, oldDate) {
+      $scope.startTime = new Date(formatDate(newDate));
+      $scope.$broadcast('start-date-changed');
+      queryIdentityDatas();
+    }
+
+    function endDateOnSetTime (newDate, oldDate) {
+      $scope.endTime = new Date(formatDate(newDate));
+      $scope.$broadcast('end-date-changed');
+      queryIdentityDatas();
+    }
+
+    function startDateBeforeRender ($dates) {
+      if ($scope.dateRangeEnd) {
+        const activeDate = moment($scope.dateRangeEnd);
+
+        $dates.filter(function (date) {
+          return date.localDateValue() >= activeDate.valueOf()
+        }).forEach(function (date) {
+          date.selectable = false;
+        })
+      }
+    }
+
+    function endDateBeforeRender ($view, $dates) {
+      if ($scope.dateRangeStart) {
+        const activeDate = moment($scope.dateRangeStart).subtract(1, $view).add(1, 'minute');
+
+        $dates.filter(function (date) {
+          return date.localDateValue() <= activeDate.valueOf()
+        }).forEach(function (date) {
+          date.selectable = false;
+        })
+      }
+    }
+
+    $scope.quickOnSetTime = function(calculate, offset) {
+      $scope.startTime = new Date();
+      $scope.endTime = new Date();
+      if (calculate === 0) {
+        $scope.startTime.setMinutes($scope.endTime.getMinutes() - timeInterval);
+      } else {
+        let offsetTime = calculate > 0?
+            $scope.endTime.getMinutes() + offset:
+            $scope.endTime.getMinutes() - offset;
+        $scope.startTime.setMinutes(offsetTime);
+      }
+      queryIdentityDatas();
+    }
+
+    function showSelectedTime() {
+      let showSelectedTime = document.getElementById('showSelectedTime');
+      showSelectedTime.innerHTML = formatShowDate($scope.startTime) + "~" + formatShowDate($scope.endTime);
+    }
 
     $scope.app = $stateParams.app;
+
     // 数据自动刷新频率
-    var DATA_REFRESH_INTERVAL = 1000 * 10;
+    $scope.autoRefresh=true;
+    $scope.refreshInterval = 1000 * 15;
+    $scope.refreshItems = [
+      {val : 15, text : "15秒刷新"},
+      {val : 30, text : "30秒刷新"},
+      {val : 60, text : "60秒刷新"},
+      {val : -1, text : "快捷选择"},
+      {val : 0, text : "自定义"}
+    ];
+    $scope.onRefreshIntervalChange = (item) => {
+      if (item.val === 0) {
+        $scope.autoRefresh = false;
+        $interval.cancel(intervalId);
+        $scope.custom = true;
+        $scope.quick = false;
+      } else if (item.val === -1) {
+        $scope.autoRefresh = false;
+        $interval.cancel(intervalId);
+        $scope.custom = false;
+        $scope.quick = true;
+        showSelectedTime();
+      } else {
+        $scope.autoRefresh = true;
+        $scope.refreshInterval = 1000 * item.val;
+        $scope.custom = false;
+        $scope.quick = false;
+      }
+      reInitIdentityDatas();
+    };
 
     $scope.servicePageConfig = {
-      pageSize: 6,
+      pageSize: 5,
       currentPageIndex: 1,
       totalPage: 1,
       totalCount: 0,
     };
+
     $scope.servicesChartConfigs = [];
 
     $scope.pageChanged = function (newPageNumber) {
@@ -37,8 +128,13 @@ app.controller('MetricCtl', ['$scope', '$stateParams', 'MetricService', '$interv
       reInitIdentityDatas();
     };
 
-    var searchT;
+    let searchT;
+    let searchKeyword = '';
     $scope.searchService = function () {
+      if (searchKeyword === $scope.serviceQuery) {
+        return;
+      }
+      searchKeyword = $scope.serviceQuery;
       $timeout.cancel(searchT);
       searchT = $timeout(function () {
         reInitIdentityDatas();
@@ -47,25 +143,41 @@ app.controller('MetricCtl', ['$scope', '$stateParams', 'MetricService', '$interv
 
     var intervalId;
     reInitIdentityDatas();
+
     function reInitIdentityDatas() {
       $interval.cancel(intervalId);
+      if ($scope.autoRefresh) {
+        // 快速触发，将自定义时间调整为近 5 分钟
+        $scope.startTime = new Date();
+        $scope.endTime = new Date();
+        $scope.startTime.setMinutes($scope.endTime.getMinutes() - 5);
+        $scope.dateRangeStart = moment($scope.startTime).format('YYYY-MM-DD HH:mm:ss');
+        $scope.dateRangeEnd = moment($scope.endTime).format('YYYY-MM-DD HH:mm:ss');
+
+        intervalId = $interval(function () {
+          $scope.startTime = new Date();
+          $scope.endTime = new Date();
+          $scope.startTime.setMinutes($scope.endTime.getMinutes() - 5);
+          $scope.dateRangeStart = moment($scope.startTime).format('YYYY-MM-DD HH:mm:ss');
+          $scope.dateRangeEnd = moment($scope.endTime).format('YYYY-MM-DD HH:mm:ss');
+          queryIdentityDatas();
+        }, $scope.refreshInterval);
+      }
       queryIdentityDatas();
-      intervalId = $interval(function () {
-        queryIdentityDatas();
-      }, DATA_REFRESH_INTERVAL);
     };
 
     $scope.$on('$destroy', function () {
       $interval.cancel(intervalId);
     });
+
     $scope.initAllChart = function () {
       //revoke useless charts positively
       while($scope.charts.length > 0) {
-      	let chart = $scope.charts.pop();
-      	chart.destroy();
+        let chart = $scope.charts.pop();
+        chart.destroy();
       }
       $.each($scope.metrics, function (idx, metric) {
-        if (idx == $scope.metrics.length - 1) {
+        if (idx === $scope.metrics.length - 1) {
           return;
         }
         const chart = new G2.Chart({
@@ -85,6 +197,9 @@ app.controller('MetricCtl', ['$scope', '$stateParams', 'MetricService', '$interv
           if (item.blockQps > maxQps) {
             maxQps = item.blockQps;
           }
+          /*if (item.rt > maxQps) {
+              maxQps = item.rt;
+          }*/
         }
         chart.source(metric.data);
         chart.scale('timestamp', {
@@ -96,7 +211,6 @@ app.controller('MetricCtl', ['$scope', '$stateParams', 'MetricService', '$interv
           max: maxQps,
           fine: true,
           alias: '通过 QPS'
-          // max: 10
         });
         chart.scale('blockQps', {
           min: 0,
@@ -107,6 +221,7 @@ app.controller('MetricCtl', ['$scope', '$stateParams', 'MetricService', '$interv
         chart.scale('rt', {
           min: 0,
           fine: true,
+          alias: '响应时间（ms）',
         });
         chart.axis('rt', {
           grid: null,
@@ -123,11 +238,11 @@ app.controller('MetricCtl', ['$scope', '$stateParams', 'MetricService', '$interv
               textAlign: 'center', // 文本对齐方向，可取值为： start center end
               fill: '#404040', // 文本的颜色
               fontSize: '11', // 文本大小
-              //textBaseline: 'top', // 文本基准线，可取 top middle bottom，默认为middle
+              textBaseline: 'top', // 文本基准线，可取 top middle bottom，默认为middle
             },
-            autoRotate: false,
+            autoRotate: true,
             formatter: function (text, item, index) {
-              return text.substring(11, 11 + 5);
+              return text.substring(5, 11 + 5);
             }
           }
         });
@@ -142,12 +257,15 @@ app.controller('MetricCtl', ['$scope', '$stateParams', 'MetricService', '$interv
             if ('blockQps' === val) {
               return '拒绝 QPS';
             }
+            if ('rt' === val) {
+              return '响应时间（ms）';
+            }
             return val;
           },
           items: [
-            { value: 'passQps', marker: { symbol: 'hyphen', stroke: 'green', radius: 5, lineWidth: 2 } },
-            { value: 'blockQps', marker: { symbol: 'hyphen', stroke: 'blue', radius: 5, lineWidth: 2 } },
-            //{ value: 'rt', marker: {symbol: 'hyphen', stroke: 'gray', radius: 5, lineWidth: 2} },
+            { value: 'passQps', marker: { symbol: 'hyphen', stroke: 'blue', radius: 5, lineWidth: 2 } },
+            { value: 'blockQps', marker: { symbol: 'hyphen', stroke: 'red', radius: 5, lineWidth: 2 } },
+            { value: 'rt', marker: {symbol: 'hyphen', stroke: 'gray', radius: 5, lineWidth: 2} }
           ],
           onClick: function (ev) {
             const item = ev.item;
@@ -166,9 +284,9 @@ app.controller('MetricCtl', ['$scope', '$stateParams', 'MetricService', '$interv
             }
           }
         });
-        chart.line().position('timestamp*passQps').size(1).color('green').shape('smooth');
-        chart.line().position('timestamp*blockQps').size(1).color('blue').shape('smooth');
-        //chart.line().position('timestamp*rt').size(1).color('gray').shape('smooth');
+        chart.line().position('timestamp*passQps').size(1).color('blue').shape('smooth');
+        chart.line().position('timestamp*blockQps').size(1).color('red').shape('smooth');
+        chart.line().position('timestamp*rt').size(0.5).color('white').shape('smooth');
         G2.track(false);
         chart.render();
       });
@@ -177,12 +295,16 @@ app.controller('MetricCtl', ['$scope', '$stateParams', 'MetricService', '$interv
     $scope.metrics = [];
     $scope.emptyObjs = [];
     function queryIdentityDatas() {
+      showSelectedTime();
+      $scope.loading = true;
       var params = {
         app: $scope.app,
         pageIndex: $scope.servicePageConfig.currentPageIndex,
         pageSize: $scope.servicePageConfig.pageSize,
         desc: $scope.isDescOrder,
-        searchKey: $scope.serviceQuery
+        searchKey: $scope.serviceQuery,
+        startTime: $scope.startTime.getTime(),
+        endTime: $scope.endTime.getTime()
       };
       MetricService.queryAppSortedIdentities(params).success(function (data) {
         $scope.metrics = [];
@@ -217,6 +339,7 @@ app.controller('MetricCtl', ['$scope', '$stateParams', 'MetricService', '$interv
           $scope.emptyServices = true;
           console.log(data.msg);
         }
+        $scope.loading = false;
       });
     };
     function fillZeros(metricData) {
@@ -231,13 +354,13 @@ app.controller('MetricCtl', ['$scope', '$stateParams', 'MetricService', '$interv
         if (curTime > lastTime + 1) {
           for (var j = lastTime + 1; j < curTime; j++) {
             filledData.push({
-                "timestamp": j * 1000,
-                "passQps": 0,
-                "blockQps": 0,
-                "successQps": 0,
-                "exception": 0,
-                "rt": 0,
-                "count": 0
+              "timestamp": j * 1000,
+              "passQps": 0,
+              "blockQps": 0,
+              "successQps": 0,
+              "exception": 0,
+              "rt": 0,
+              "count": 0
             })
           }
         }
